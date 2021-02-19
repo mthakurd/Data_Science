@@ -1,0 +1,198 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Load data
+```{r}
+fifa <- read.csv('data.csv')
+#head(fifa,10)
+```
+
+The goal of the project is to predict the Wage of a player based on stats
+
+# Select variables in data having player stats
+```{r}
+colnames <- c("Wage","Potential","Crossing","Finishing","HeadingAccuracy","Dribbling","Stamina","Strength","LongShots","Aggression","Positioning","Penalties","SlidingTackle")
+fifa_subset <- fifa[,colnames]
+```
+
+
+# Exploratory Data Analysis
+
+# Checking for missing values in the data frame
+```{r}
+sapply(fifa_subset, function(x) sum(is.na(x)))
+```
+There are missing data.
+
+# Omit NA values
+```{r}
+fifa_subset_complete <- na.omit(fifa_subset)
+```
+
+
+# Checking if missing values in the data frame have been omited
+```{r}
+sapply(fifa_subset_complete, function(x) sum(is.na(x)))
+```
+
+# Checking the data type of each variable in the data set
+```{r}
+sapply(fifa_subset_complete, function(x) typeof(x))
+```
+
+
+# Summary statistics of each column in the data frame.
+```{r}
+#summary(fifa_subset)
+```
+
+# Convert wage into integer in thousands of euros
+```{r}
+fifa_subset_complete[,"Wage"] <- as.integer(gsub("[^0-9]", "", fifa_subset_complete$Wage) )
+```
+
+
+# Summary statistics of each column in the data frame.
+```{r}
+summary_stata <- lapply( fifa_subset_complete , function(x) rbind( mean = mean(x) ,
+                                                                   sd = sd(x) ,
+                                                                   median = median(x) ,
+                                                                   minimum = min(x) ,
+                                                                   maximum = max(x) ,
+                                                                   s.size = length(x) ) )
+
+summary_stata_df <- data.frame(summary_stata)
+summary_stata_df
+```
+
+
+# Explore association between variables in the data frame using correlation matrix
+
+```{r}
+cor_matrix <- as.data.frame(cor(fifa_subset_complete))
+cor_matrix
+```
+
+
+# Check if the response variable is close to normality
+```{r}
+plot(density(fifa_subset_complete$Wage), main = "Density plot of wage", ylab = "Frequency",
+    col="red", xlab = "wages of player in thousands of euros")
+```
+
+# Explore the association between the dependent variable and the independent variable 
+# using scatterplot matrix
+```{r}
+pairs(fifa_subset_complete[,c("Wage","Potential","Crossing","Finishing")], main = "Scatterplot Matrix")
+```
+
+
+
+```{r}
+pairs(fifa_subset_complete[,c("Wage","HeadingAccuracy","Dribbling","Stamina")], main = "Scatterplot Matrix")
+```
+
+
+
+```{r}
+pairs(fifa_subset_complete[,c("Wage","Strength","LongShots","Aggression")], main = "Scatterplot Matrix")
+```
+
+
+
+```{r}
+pairs(fifa_subset_complete[,c("Wage","Positioning","Penalties","SlidingTackle")], main = "Scatterplot Matrix")
+```
+
+# Splitting the data frame into the Training set and Testing set
+# install.packages('caTools')
+```{r}
+library(caTools)
+set.seed(2019)
+split = sample.split(fifa_subset_complete$Wage, SplitRatio = 0.7)
+training_set = subset(fifa_subset_complete, split == TRUE)
+testing_set = subset(fifa_subset_complete, split == FALSE)
+```
+
+
+# Fitting Multiple Linear Regression to the Training set
+```{r}
+linear_model = lm(formula = Wage ~ ., data = training_set)
+linear_model
+```
+
+
+# Coefficients Estimates for the Linear Regression Model
+```{r}
+linreg_coef <- as.data.frame(summary(linear_model)$coef)
+linreg_coef
+```
+
+
+# Statistical Summary of the model
+```{r}
+summary(linear_model)
+```
+
+
+# Predicting new result with linear multiple Regression
+```{r}
+y_pred = predict(linear_model, newdata = testing_set[,-1])
+```
+
+# Calculate prediction accuracy of the multiple linear regression
+```{r}
+cor(testing_set$Wage, y_pred) # 51.87%
+```
+
+
+# Fitting Decision Tree Regression to the dataset
+```{r}
+# install.packages('rpart')
+# install.packages("rpart.plot")
+library(rpart)
+library(rpart.plot)
+decision_tree_regression = rpart(formula = Wage ~ ., data = training_set)
+rpart.plot(decision_tree_regression)
+```
+
+
+# Predicting new result with Decision Tree Regression
+```{r}
+y_pred_DT = predict(decision_tree_regression, newdata = testing_set[,-1])
+```
+
+
+# Calculate prediction accuracy of the decision tree
+```{r}
+cor(testing_set$Wage, y_pred_DT) # 68.79%
+```
+
+
+
+# Fitting Random Forest Regression to the dataset
+```{r}
+# install.packages('randomForest')
+library(randomForest)
+set.seed(2019)
+random_forest_regression = randomForest(x = training_set[-1],
+                                        y = training_set$Wage,
+                                        ntree = 500)
+```
+
+
+
+# Predicting a new result with Random Forest Regression
+```{r}
+y_pred_RF = predict(random_forest_regression, newdata = testing_set[,-1])
+```
+
+
+# Calculate prediction accuracy of the random forest
+```{r}
+cor(testing_set$Wage, y_pred_RF) # 82.47%
+```
+
